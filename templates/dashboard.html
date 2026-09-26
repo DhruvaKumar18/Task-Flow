@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard &mdash; Todo App{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Top Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">My Tasks</h1>
+            <p class="text-muted mb-0">Manage your daily tasks and track time spent.</p>
+        </div>
+        <a href="{% url 'create_task' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Add New Task
+        </a>
+    </div>
+
+    <!-- 4 Stats Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-box">
+                <div class="metric-title">Total Tasks</div>
+                <div class="metric-number">{{ total_tasks }}</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-box">
+                <div class="metric-title">In Progress</div>
+                <div class="metric-number text-success">{{ running_tasks }}</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-box">
+                <div class="metric-title">Completed</div>
+                <div class="metric-number text-primary">{{ completed_tasks }}</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-box">
+                <div class="metric-title">Time Tracked</div>
+                <div class="metric-number text-warning">{{ total_worked_display }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters Bar -->
+    <div class="filter-bar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <!-- Search Input -->
+        <div class="input-group" style="max-width: 320px;">
+            <span class="input-group-text bg-white text-muted">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text" id="taskSearchInput" class="form-control" placeholder="Search tasks...">
+        </div>
+
+        <!-- Filter Buttons -->
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-outline-secondary filter-tab-btn active" data-status="all">
+                All ({{ total_tasks }})
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary filter-tab-btn" data-status="Running">
+                In Progress ({{ running_tasks }})
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary filter-tab-btn" data-status="Pending">
+                Pending ({{ pending_tasks }})
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary filter-tab-btn" data-status="Completed">
+                Completed ({{ completed_tasks }})
+            </button>
+        </div>
+
+        <!-- Priority Filter -->
+        <select class="form-select form-select-sm" id="priorityFilterSelect" style="width: auto;">
+            <option value="all">All Priorities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+        </select>
+    </div>
+
+    <!-- Tasks Grid -->
+    {% if tasks %}
+        <div class="row g-3" id="tasksContainer">
+            {% for task in tasks %}
+                <div class="col-md-6 col-lg-4 task-item-card"
+                     data-title="{{ task.title }}"
+                     data-desc="{{ task.description }}"
+                     data-status="{{ task.status }}"
+                     data-priority="{{ task.priority }}">
+                    
+                    <div class="task-box {% if task.timer_running %}status-running{% elif task.status == 'Completed' %}status-completed{% endif %}">
+                        <!-- Badges -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <!-- Category & Priority -->
+                            <div class="d-flex gap-1 align-items-center">
+                                {% if task.category %}
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-tag-fill me-1"></i>{{ task.category.name }}
+                                    </span>
+                                {% endif %}
+                                {% if task.priority == "High" %}
+                                    <span class="badge badge-priority-high">High Priority</span>
+                                {% elif task.priority == "Medium" %}
+                                    <span class="badge badge-priority-medium">Medium Priority</span>
+                                {% else %}
+                                    <span class="badge badge-priority-low">Low Priority</span>
+                                {% endif %}
+                            </div>
+
+                            <!-- Status -->
+                            <div>
+                                {% if task.status == "Running" %}
+                                    <span class="badge badge-status-running">In Progress</span>
+                                {% elif task.status == "Paused" %}
+                                    <span class="badge badge-status-paused">Paused</span>
+                                {% elif task.status == "Completed" %}
+                                    <span class="badge badge-status-completed">Completed</span>
+                                {% else %}
+                                    <span class="badge badge-status-pending">Pending</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Title & Description -->
+                        <h2 class="task-main-title">{{ task.title }}</h2>
+                        <p class="task-main-desc">
+                            {% if task.description %}
+                                {{ task.description }}
+                            {% else %}
+                                <span class="text-muted fst-italic">No description provided.</span>
+                            {% endif %}
+                        </p>
+
+                        <!-- Due Date -->
+                        <div class="text-muted small mb-2">
+                            <i class="bi bi-calendar-event me-1"></i> Due Date: <strong>{{ task.due_date|date:"d M Y" }}</strong>
+                            {% if task.is_overdue %}
+                                <span class="badge bg-danger ms-1">Overdue</span>
+                            {% elif task.is_due_today %}
+                                <span class="badge bg-warning text-dark ms-1">Due Today</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Timer Widget -->
+                        <div class="timer-widget">
+                            <div>
+                                <small class="text-muted d-block">Time Tracked:</small>
+                                <span class="timer-display {% if task.timer_running %}timer-running-text{% endif %}">
+                                    <i class="bi bi-stopwatch me-1"></i>
+                                    <span class="timer"
+                                          data-worked="{{ task.worked_seconds }}"
+                                          data-running="{{ task.timer_running|yesno:'true,false' }}"
+                                          data-start="{% if task.start_time %}{{ task.start_time|date:'c' }}{% endif %}">
+                                        {{ task.get_worked_hours }}
+                                    </span>
+                                </span>
+                            </div>
+
+                            <!-- Timer Action Buttons -->
+                            <div>
+                                {% if task.status == "Running" %}
+                                    <form action="{% url 'pause_timer' task.id %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-warning btn-sm" title="Pause Timer">
+                                            <i class="bi bi-pause-fill"></i> Pause
+                                        </button>
+                                    </form>
+                                    <form action="{% url 'stop_timer' task.id %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-success btn-sm" title="Complete Task">
+                                            <i class="bi bi-check-lg"></i> Done
+                                        </button>
+                                    </form>
+                                {% elif task.status == "Paused" %}
+                                    <form action="{% url 'resume_timer' task.id %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-success btn-sm" title="Resume Timer">
+                                            <i class="bi bi-play-fill"></i> Resume
+                                        </button>
+                                    </form>
+                                    <form action="{% url 'stop_timer' task.id %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-primary btn-sm" title="Complete Task">
+                                            <i class="bi bi-check-lg"></i> Done
+                                        </button>
+                                    </form>
+                                {% elif task.status == "Pending" %}
+                                    <form action="{% url 'start_timer' task.id %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-success btn-sm">
+                                            <i class="bi bi-play-fill"></i> Start Timer
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="text-success small fw-bold">
+                                        <i class="bi bi-check-circle-fill"></i> Done
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Card Actions Footer -->
+                        <div class="d-flex justify-content-between align-items-center pt-2 mt-auto border-top">
+                            <!-- Toggle Status Button -->
+                            <form action="{% url 'toggle_status' task.id %}" method="post" class="m-0">
+                                {% csrf_token %}
+                                {% if task.status == "Completed" %}
+                                    <button type="submit" class="btn btn-link btn-sm text-decoration-none p-0 text-secondary">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Reopen
+                                    </button>
+                                {% else %}
+                                    <button type="submit" class="btn btn-link btn-sm text-decoration-none p-0 text-success">
+                                        <i class="bi bi-check2"></i> Mark Complete
+                                    </button>
+                                {% endif %}
+                            </form>
+
+                            <!-- Edit, Duplicate, Delete Buttons -->
+                            <div class="btn-group btn-group-sm">
+                                <form action="{% url 'duplicate_task' task.id %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-secondary" title="Duplicate Task">
+                                        <i class="bi bi-copy"></i>
+                                    </button>
+                                </form>
+                                <a href="{% url 'update_task' task.id %}" class="btn btn-outline-secondary" title="Edit Task">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'delete_task' task.id %}" class="btn btn-outline-danger" title="Delete Task">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- No matching filter results -->
+        <div id="noFilterResultsState" class="text-center py-5" style="display: none;">
+            <p class="text-muted">No tasks found matching your filter criteria.</p>
+        </div>
+    {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-5 bg-white border rounded-3 p-4">
+            <i class="bi bi-check2-circle text-muted fs-1 mb-2"></i>
+            <h4>No tasks found</h4>
+            <p class="text-muted mb-3">You don't have any tasks right now. Create one to get started!</p>
+            <a href="{% url 'create_task' %}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i> Create Task
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

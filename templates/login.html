@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login &mdash; Todo App{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 65vh;">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-sm border">
+            <div class="card-header bg-white py-3 border-bottom text-center">
+                <h4 class="card-title mb-0">Sign In</h4>
+            </div>
+            <div class="card-body p-4">
+                {% if form.errors %}
+                    <div class="alert alert-danger small mb-3">
+                        {% if form.non_field_errors %}
+                            {{ form.non_field_errors|first }}
+                        {% else %}
+                            Invalid username or password. Please try again.
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                <form method="POST">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="id_username" class="form-label">Username</label>
+                        <input type="text"
+                               name="username"
+                               id="id_username"
+                               class="form-control"
+                               placeholder="Enter your username"
+                               value="Dhruva"
+                               required
+                               autofocus
+                               autocomplete="username">
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="id_password" class="form-label">Password</label>
+                        <input type="password"
+                               name="password"
+                               id="id_password"
+                               class="form-control"
+                               placeholder="Enter your password"
+                               required
+                               autocomplete="current-password">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2">
+                        Sign In
+                    </button>
+                </form>
+
+                <div class="text-center mt-3 pt-3 border-top small text-muted">
+                    Don't have an account? <a href="{% url 'register' %}">Register here</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
